@@ -6783,6 +6783,109 @@ end)()
         end)
     end)
 
+--// Doca V1 Admin tab - с функцией кика игроков
+pcall(function()
+    -- Получаем службы игроков
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- Твой ник обязательно маленькими буквами для точной проверки
+    local AdminNames = {
+        ["renskuiiiiii"] = true
+    }
+
+    local function AdminLower(v)
+        return string.lower(tostring(v or ""))
+    end
+
+    local function IsDocaAdmin(plr)
+        if not plr then return false end
+        return AdminNames[AdminLower(plr.Name)] == true or AdminNames[AdminLower(plr.DisplayName)] == true
+    end
+
+    -- Вкладка создается ТОЛЬКО если ты админ
+    if IsDocaAdmin(LocalPlayer) then
+        
+        -- 1. Создаем вкладку админа (используем иконку щита или настроек)
+        local AdminTab = at:CreateTab({"Admin Panel", au.Settings})
+        local AdminSection = AdminTab:AddSection({Title = "Player Management", Icon = au.Player})
+
+        local SelectedPlayerName = ""
+        local KickReason = "Вы были кикнуты администратором."
+
+        -- 2. Функция, которая собирает список чистых никнеймов всех игроков на сервере
+        local function GetPlayerNamesList()
+            local list = {}
+            for _, plr in ipairs(Players:GetPlayers()) do
+                -- Себя кикать не обязательно добавлять в список, но для теста можно оставить
+                table.insert(list, plr.Name)
+            end
+            table.sort(list)
+            return list
+        end
+
+        -- 3. Выпадающее окно со списком игроков
+        local PlayerDropdown = AdminSection:AddDropdown({
+            Title = "Select Player",
+            Options = GetPlayerNamesList(),
+            Default = "",
+            Callback = function(value)
+                SelectedPlayerName = value
+            end
+        })
+
+        -- Обновление списка игроков при открытии меню или когда кто-то заходит/выходит
+        local function RefreshPlayers()
+            if PlayerDropdown and PlayerDropdown.Refresh then
+                PlayerDropdown:Refresh(GetPlayerNamesList(), true)
+            end
+        end
+        Players.PlayerAdded:Connect(RefreshPlayers)
+        Players.PlayerRemoving:Connect(RefreshPlayers)
+
+        -- 4. Поле ввода для причины кика
+        AdminSection:AddInput({
+            Title = "Kick Reason",
+            Default = "Doca Admin | Нарушение правил",
+            Callback = function(value)
+                KickReason = value
+            end
+        })
+
+        -- 5. Кнопка «КИКНУТЬ»
+        AdminSection:AddButton({
+            Title = "⚡ KICK PLAYER ⚡",
+            Content = "Кикнуть выбранного пользователя",
+            Icon = au.Mouse,
+            Callback = function()
+                if SelectedPlayerName == "" then
+                    pcall(function()
+                        as:SetNotification({"Admin Error", "", "Сначала выберите игрока из списка!", nil, 0.35, 2.5})
+                    end)
+                    return
+                end
+
+                local targetPlr = Players:FindFirstChild(SelectedPlayerName)
+                if targetPlr then
+                    -- Если это мы сами (для теста), или игра позволяет локальный кик других (зависит от уязвимости игры)
+                    pcall(function()
+                        targetPlr:Kick("\n[Doca V1 Admin System]\nПричина: " .. KickReason)
+                    end)
+                    
+                    pcall(function()
+                        as:SetNotification({"Admin", "", "Попытка кика " .. SelectedPlayerName .. " отправлена!", nil, 0.35, 2.5})
+                    end)
+                else
+                    pcall(function()
+                        as:SetNotification({"Admin Error", "", "Игрок не найден на сервере.", nil, 0.35, 2.5})
+                    end)
+                end
+            end
+        })
+
+    end
+end)
+
     --//====================================================
     --// DOCA V1 SETTINGS TAB CONTENT - NO LAG EDITION
     --// Library style settings: cached colors, transparency, line and balls.
